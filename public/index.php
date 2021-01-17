@@ -9,6 +9,8 @@ require __DIR__ . '/../vendor/autoload.php';
 
 $app = AppFactory::create();
 
+$app->addErrorMiddleware(true,false,false);
+
 $app->get('/', function (Request $request, Response $response, $args) {
     $response->getBody()->write("Hello Slim !");
     return $response;
