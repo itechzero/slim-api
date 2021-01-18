@@ -7,6 +7,10 @@ use Slim\Factory\ServerRequestCreatorFactory;
 use App\Exceptions\HttpErrorHandler;
 use App\Exceptions\ShutdownHandler;
 use App\ResponseEmitter\ResponseEmitter;
+use App\Settings\SettingsInterface;
+
+define('BASE_PATH', dirname(__DIR__));
+define('APP_PATH', BASE_PATH . '/app');
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -14,7 +18,7 @@ require __DIR__ . '/../vendor/autoload.php';
 $containerBuilder = new ContainerBuilder();
 
 if (true) { // Should be set to true in production
-    $containerBuilder->enableCompilation(__DIR__ . '/../runtime/cache');
+    $containerBuilder->enableCompilation(BASE_PATH . '/runtime/cache');
 }
 // Set up settings
 $settings = require __DIR__ . '/../config/settings.php';
@@ -40,12 +44,10 @@ $callableResolver = $app->getCallableResolver();
 $routes = require __DIR__ . '/../routes/routes.php';
 $routes($app);
 
-///** @var bool $displayErrorDetails */
-//$displayErrorDetails = $container->get(SettingsInterface::class)->get('displayErrorDetails');
-$displayErrorDetails = true;
+/** @var bool $displayErrorDetails */
+$displayErrorDetails = $container->get(SettingsInterface::class)->get('displayErrorDetails');
 
 // Create Request object from globals
-//$serverRequestCreator = ServerRequestCreatorFactory::create();
 $serverRequestCreator = ServerRequestCreatorFactory::create();
 $request = $serverRequestCreator->createServerRequestFromGlobals();
 
