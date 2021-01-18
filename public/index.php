@@ -25,8 +25,8 @@ $settings = require __DIR__ . '/../config/settings.php';
 $settings($containerBuilder);
 
 // Set up dependencies
-//$dependencies = require __DIR__ . '/../app/dependencies.php';
-//$dependencies($containerBuilder);
+$dependencies = require __DIR__ . '/../config/dependencies.php';
+$dependencies($containerBuilder);
 
 // Build PHP-DI Container instance
 $container = $containerBuilder->build();
