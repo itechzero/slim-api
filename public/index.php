@@ -2,9 +2,11 @@
 declare(strict_types=1);
 
 use DI\ContainerBuilder;
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Factory\AppFactory;
+use Slim\Factory\ServerRequestCreatorFactory;
+use App\Exceptions\HttpErrorHandler;
+use App\Exceptions\ShutdownHandler;
+use App\ResponseEmitter\ResponseEmitter;
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -12,19 +14,57 @@ require __DIR__ . '/../vendor/autoload.php';
 $containerBuilder = new ContainerBuilder();
 
 if (true) { // Should be set to true in production
-    $containerBuilder->enableCompilation(__DIR__ . '/../var/cache');
+    $containerBuilder->enableCompilation(__DIR__ . '/../runtime/cache');
 }
 // Set up settings
 $settings = require __DIR__ . '/../config/settings.php';
 $settings($containerBuilder);
 
+// Set up dependencies
+//$dependencies = require __DIR__ . '/../app/dependencies.php';
+//$dependencies($containerBuilder);
+
+// Build PHP-DI Container instance
+$container = $containerBuilder->build();
+
+// Instantiate the app
+AppFactory::setContainer($container);
 $app = AppFactory::create();
+$callableResolver = $app->getCallableResolver();
 
-$app->addErrorMiddleware(true,false,false);
+// Register middleware
+//$middleware = require __DIR__ . '/../app/middleware.php';
+//$middleware($app);
 
-$app->get('/', function (Request $request, Response $response, $args) {
-    $response->getBody()->write("Hello Slim !!");
-    return $response;
-});
+// Register routes
+$routes = require __DIR__ . '/../routes/routes.php';
+$routes($app);
 
-$app->run();
+///** @var bool $displayErrorDetails */
+//$displayErrorDetails = $container->get(SettingsInterface::class)->get('displayErrorDetails');
+$displayErrorDetails = true;
+
+// Create Request object from globals
+//$serverRequestCreator = ServerRequestCreatorFactory::create();
+$serverRequestCreator = ServerRequestCreatorFactory::create();
+$request = $serverRequestCreator->createServerRequestFromGlobals();
+
+// Create Error Handler
+$responseFactory = $app->getResponseFactory();
+$errorHandler = new HttpErrorHandler($callableResolver, $responseFactory);
+
+// Create Shutdown Handler
+$shutdownHandler = new ShutdownHandler($request, $errorHandler, $displayErrorDetails);
+register_shutdown_function($shutdownHandler);
+
+// Add Routing Middleware
+$app->addRoutingMiddleware();
+
+// Add Error Middleware
+$errorMiddleware = $app->addErrorMiddleware($displayErrorDetails, false, false);
+$errorMiddleware->setDefaultErrorHandler($errorHandler);
+
+// Run App & Emit ResponseEmitter
+$response = $app->handle($request);
+$responseEmitter = new ResponseEmitter();
+$responseEmitter->emit($response);
